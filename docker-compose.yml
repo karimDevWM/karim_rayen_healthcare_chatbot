@@ -1,0 +1,44 @@
+services:
+  ml-backend:
+    build:
+      context: ./mlBackendHealthcare
+      dockerfile: Dockerfile
+    container_name: ml-healthcare-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlBackendHealthcare:/app
+    environment:
+      - FLASK_ENV=development
+    restart: unless-stopped
+    networks:
+      - healthcare_chatbot
+
+  healthcare-chatbot:
+    build:
+      context: ./karim-rayen_healthcarechatbot
+      dockerfile: Dockerfile
+    container_name: healthcare-chatbot
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./karim-rayen_healthcarechatbot/src:/app/src
+      - ./karim-rayen_healthcarechatbot/static:/app/static
+      - ./temp_uploads:/app/temp_uploads
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    depends_on:
+      - ml-backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - healthcare_chatbot
+
+networks:
+  healthcare_chatbot:
+    driver: bridge

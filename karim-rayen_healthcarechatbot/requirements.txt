@@ -1,0 +1,64 @@
+# Healthcare Chatbot - Required Python Packages
+
+# Core Framework
+streamlit>=1.32.0
+
+# File Processing
+PyPDF2>=3.0.1
+python-docx>=0.8.11
+Pillow>=10.0.0
+pdfplumber>=0.9.0
+
+# Audio Processing
+audio-recorder-streamlit>=0.0.8
+speechrecognition>=3.10.0
+pydub>=0.25.1
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# PDF Generation
+fpdf2>=2.7.0
+
+# Web and API
+requests>=2.31.0
+# fastapi>=0.103.0
+# uvicorn>=0.23.0
+
+# Utilities
+pathlib>=1.0.1
+python-dotenv>=1.0.0
+typing-extensions>=4.8.0
+
+# Development and Testing (Optional)
+# pytest>=7.4.0
+# pytest-streamlit>=0.3.0
+# black>=23.7.0
+# flake8>=6.0.0
+
+# Cloud Services APIs (Optional - uncomment and configure as needed)
+# google-cloud-speech>=2.21.0
+# google-cloud-vision>=3.4.4
+# azure-cognitiveservices-speech>=1.31.0
+# boto3>=1.28.0  # For AWS services
+
+# Advanced NLP (Optional - for enhanced medical text processing)
+# spacy>=3.7.0
+# transformers>=4.33.0
+# torch>=2.0.0
+
+# Medical/Health Libraries (Optional - for specialized health data processing)
+# medacy>=1.2.0
+# bioservices>=1.11.0
+
+# Security and Privacy (Optional - for enhanced security)
+# cryptography>=41.0.0
+# hashlib>=20081119
+
+# Logging and Monitoring (Optional)
+# loguru>=0.7.0
+
+# Deployment (Optional - for containerization and deployment)
+# docker>=6.1.0
+# gunicorn>=21.2.0
