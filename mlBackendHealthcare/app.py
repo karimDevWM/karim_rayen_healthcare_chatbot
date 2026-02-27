@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify, make_response
 import pickle
 import json
 import numpy as np
@@ -75,7 +75,41 @@ def faire_diagnostic(symptomes):
 
 # --- 4. ROUTES ---
 @app.route('/')
-def home(): return render_template('index.html')
+def index():
+    """Lightweight HTML status page for humans."""
+    html = """
+    <!DOCTYPE html>
+    <html>
+        <head><title>Healthcare ML API</title></head>
+        <body>
+            <h1>Healthcare ML API</h1>
+            <p>Status: <strong>Running</strong></p>
+            <ul>
+                <li><a href="/health">/health</a> — Health check</li>
+                <li><a href="/api">/api</a> — API info (JSON)</li>
+            </ul>
+        </body>
+    </html>
+    """
+    return make_response(html, 200)
+
+@app.route('/api')
+def api_root():
+    """Versioned JSON API root for programmatic consumers."""
+    return jsonify({
+        "name": "Healthcare ML API",
+        "version": "1.0.0",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "ask": "/ask"
+        }
+    }), 200
+
+@app.route('/health')
+def health():
+    """Health check endpoint used by Docker and load balancers."""
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/ask', methods=['POST'])
 def ask():
