@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 import pickle
 import json
 import numpy as np
@@ -75,7 +75,12 @@ def faire_diagnostic(symptomes):
 
 # --- 4. ROUTES ---
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    return jsonify({"status": "ok", "message": "Healthcare ML API is running"})
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"})
 
 @app.route('/ask', methods=['POST'])
 def ask():
