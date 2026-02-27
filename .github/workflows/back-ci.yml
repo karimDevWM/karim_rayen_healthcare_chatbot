@@ -10,16 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     name: PEP8 Code Style Check
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4        # ✅ upgraded from v3
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5    # ✅ upgraded from v4
         with:
           python-version: '3.9'
-      
+
       - name: Install flake8
         run: pip install flake8
-      
+
       - name: Run PEP8 check
         id: pep8
         run: flake8 mlBackendHealthcare/ --count --statistics --output-file=pep8-report.txt
@@ -30,16 +30,16 @@ jobs:
     name: Build Code
     needs: pep8-check
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4        # ✅ upgraded from v3
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5    # ✅ upgraded from v4
         with:
           python-version: '3.9'
-      
+
       - name: Install dependencies
         run: pip install -r mlBackendHealthcare/requirements.txt
-      
+
       - name: Build application
         run: python -m py_compile mlBackendHealthcare/app.py
         continue-on-error: true
@@ -48,16 +48,16 @@ jobs:
     runs-on: ubuntu-latest
     name: Verify Packages
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4        # ✅ upgraded from v3
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5    # ✅ upgraded from v4
         with:
           python-version: '3.9'
-      
+
       - name: Install dependencies
         run: pip install -r mlBackendHealthcare/requirements.txt
-      
+
       - name: Generate dependency report
         run: pip list > packages-report.txt
 
@@ -67,13 +67,13 @@ jobs:
     needs: [pep8-check, build, verify-packages]
     if: always()
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4        # ✅ upgraded from v3
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5    # ✅ upgraded from v4
         with:
           python-version: '3.9'
-      
+
       - name: Generate HTML Report
         run: |
           python << 'EOF'
@@ -137,9 +137,9 @@ jobs:
           with open('ci-report.html', 'w') as f:
               f.write(html_content)
           EOF
-      
+
       - name: Upload Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # ✅ upgraded from v3
         with:
           name: backend-ci-report
           path: ci-report.html
