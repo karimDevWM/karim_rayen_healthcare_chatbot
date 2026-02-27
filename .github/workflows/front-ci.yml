@@ -10,18 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     name: PEP8 Code Style Check
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      
+
       - name: Install flake8
         run: pip install flake8
-      
+
       - name: Run PEP8 check
         id: pep8
+        working-directory: karim-rayen_healthcarechatbot   # ✅ correct path
         run: flake8 src/ app.py config.py --count --statistics --output-file=pep8-report.txt
         continue-on-error: true
 
@@ -30,17 +31,19 @@ jobs:
     name: Build Code
     needs: pep8-check
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      
+
       - name: Install dependencies
+        working-directory: karim-rayen_healthcarechatbot   # ✅ correct path
         run: pip install -r requirements.txt
-      
+
       - name: Build application
+        working-directory: karim-rayen_healthcarechatbot   # ✅ correct path
         run: python -m py_compile app.py src/*.py
         continue-on-error: true
 
@@ -48,17 +51,19 @@ jobs:
     runs-on: ubuntu-latest
     name: Verify Packages
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      
+
       - name: Install dependencies
+        working-directory: karim-rayen_healthcarechatbot   # ✅ added missing path
         run: pip install -r requirements.txt
-      
+
       - name: Generate dependency report
+        working-directory: karim-rayen_healthcarechatbot   # ✅ added missing path
         run: pip list > packages-report.txt
 
   report:
@@ -67,13 +72,13 @@ jobs:
     needs: [pep8-check, build, verify-packages]
     if: always()
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
-      
+
       - name: Generate HTML Report
         run: |
           python << 'EOF'
@@ -83,7 +88,7 @@ jobs:
           <!DOCTYPE html>
           <html>
           <head>
-              <title>CI Pipeline Report</title>
+              <title>Frontend CI Pipeline Report</title>
               <style>
                   body {{ font-family: Arial, sans-serif; margin: 20px; }}
                   .header {{ background-color: #007bff; color: white; padding: 20px; border-radius: 5px; }}
@@ -97,7 +102,7 @@ jobs:
           </head>
           <body>
               <div class="header">
-                  <h1>CI Pipeline Report</h1>
+                  <h1>Frontend CI Pipeline Report</h1>
                   <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
               </div>
               
@@ -128,6 +133,7 @@ jobs:
                   <p><strong>Branch:</strong> develop</p>
                   <p><strong>Trigger:</strong> Pull Request</p>
                   <p><strong>Python Version:</strong> 3.9</p>
+                  <p><strong>Service:</strong> Frontend Chatbot</p>
               </div>
           </body>
           </html>
@@ -136,9 +142,9 @@ jobs:
           with open('ci-report.html', 'w') as f:
               f.write(html_content)
           EOF
-      
+
       - name: Upload Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # ✅ upgraded from v3
         with:
-          name: ci-report
+          name: frontend-ci-report
           path: ci-report.html
