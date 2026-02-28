@@ -40,7 +40,6 @@ coverage.xml
 *.ipynb
 
 # ML Models & large binary files
-*.pkl
 *.pickle
 *.h5
 *.hdf5
