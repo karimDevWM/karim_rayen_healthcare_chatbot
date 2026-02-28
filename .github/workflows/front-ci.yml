@@ -140,4 +140,4 @@ jobs:
         run: |
           echo "## ✅ CI Report Published" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 [View Backend CI Report](https://karimDevWM.github.io/karim_rayen_healthcare_chatbot/backend-ci-report/)" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [View Backend CI Report](https://karimDevWM.github.io/karim_rayen_healthcare_chatbot/frontend-ci-report/)" >> $GITHUB_STEP_SUMMARY
