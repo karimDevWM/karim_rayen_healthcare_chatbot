@@ -5,7 +5,6 @@ on:
     branches:
       - develop
 
-# ✅ Required permissions for GitHub Pages deployment
 permissions:
   contents: write
   pages: write
@@ -27,6 +26,12 @@ jobs:
         id: pep8
         run: flake8 mlBackendHealthcare/ --count --statistics --output-file=pep8-report.txt
         continue-on-error: true
+      - name: Upload PEP8 report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pep8-report
+          path: pep8-report.txt
+          if-no-files-found: ignore
 
   build:
     runs-on: ubuntu-latest
@@ -44,6 +49,37 @@ jobs:
         run: python -m py_compile mlBackendHealthcare/app.py
         continue-on-error: true
 
+  test:
+    runs-on: ubuntu-latest
+    name: Run Tests
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install pytest pytest-cov -r mlBackendHealthcare/requirements.txt
+      - name: Run tests
+        working-directory: mlBackendHealthcare
+        run: |
+          pytest tests/ \
+            --cov=. \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junit-xml=test-results.xml \
+            -v 2>&1 | tee test-output.txt
+        continue-on-error: true
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            mlBackendHealthcare/test-results.xml
+            mlBackendHealthcare/test-output.txt
+            mlBackendHealthcare/coverage.xml
+          if-no-files-found: ignore
+
   verify-packages:
     runs-on: ubuntu-latest
     name: Verify Packages
@@ -57,11 +93,17 @@ jobs:
         run: pip install -r mlBackendHealthcare/requirements.txt
       - name: Generate dependency report
         run: pip list > packages-report.txt
+      - name: Upload packages report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-packages-report
+          path: packages-report.txt
+          if-no-files-found: ignore
 
   report:
     runs-on: ubuntu-latest
     name: Generate CI Report
-    needs: [pep8-check, build, verify-packages]
+    needs: [pep8-check, build, test, verify-packages]
     if: always()
     steps:
       - uses: actions/checkout@v4
@@ -71,11 +113,140 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-test-results
+          path: artifacts/tests
+        continue-on-error: true
+
+      - name: Download PEP8 report
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-pep8-report
+          path: artifacts/pep8
+        continue-on-error: true
+
+      - name: Download packages report
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-packages-report
+          path: artifacts/packages
+        continue-on-error: true
+
+      - name: Install junit-xml parser
+        run: pip install junit-xml lxml
+
       - name: Generate HTML Report
         run: |
           mkdir -p reports
           python << 'EOF'
+          import os
+          import xml.etree.ElementTree as ET
           from datetime import datetime
+
+          # --- Parse test-results.xml ---
+          test_rows = ""
+          test_summary = {"total": 0, "passed": 0, "failed": 0, "errors": 0, "skipped": 0}
+          test_output = ""
+          test_status_label = "⚠️ No Results"
+          test_status_class = "warning"
+
+          junit_path = "artifacts/tests/test-results.xml"
+          output_path = "artifacts/tests/test-output.txt"
+
+          if os.path.exists(junit_path):
+              try:
+                  tree = ET.parse(junit_path)
+                  root = tree.getroot()
+                  suites = root.findall("testsuite") or [root]
+
+                  for suite in suites:
+                      for tc in suite.findall("testcase"):
+                          name = tc.get("name", "unknown")
+                          classname = tc.get("classname", "")
+                          time_taken = tc.get("time", "0")
+                          failure = tc.find("failure")
+                          error = tc.find("error")
+                          skipped = tc.find("skipped")
+
+                          if failure is not None:
+                              status = "❌ FAILED"
+                              row_class = "failed"
+                              test_summary["failed"] += 1
+                          elif error is not None:
+                              status = "💥 ERROR"
+                              row_class = "failed"
+                              test_summary["errors"] += 1
+                          elif skipped is not None:
+                              status = "⏭️ SKIPPED"
+                              row_class = "skipped"
+                              test_summary["skipped"] += 1
+                          else:
+                              status = "✅ PASSED"
+                              row_class = "passed"
+                              test_summary["passed"] += 1
+
+                          test_summary["total"] += 1
+                          test_rows += f"""
+                          <tr class="{row_class}">
+                              <td>{classname}</td>
+                              <td>{name}</td>
+                              <td>{status}</td>
+                              <td>{float(time_taken):.3f}s</td>
+                          </tr>"""
+
+                  if test_summary["failed"] == 0 and test_summary["errors"] == 0:
+                      test_status_label = "✅ All Tests Passed"
+                      test_status_class = "success"
+                  else:
+                      test_status_label = "❌ Some Tests Failed"
+                      test_status_class = "failure"
+              except Exception as e:
+                  test_rows = f'<tr><td colspan="4">Error parsing results: {e}</td></tr>'
+          else:
+              test_rows = '<tr><td colspan="4">No test results file found.</td></tr>'
+
+          if os.path.exists(output_path):
+              with open(output_path, "r") as f:
+                  test_output = f.read().replace("<", "&lt;").replace(">", "&gt;")
+
+          # --- Parse coverage.xml ---
+          coverage_rows = ""
+          total_coverage = "N/A"
+          coverage_path = "artifacts/tests/coverage.xml"
+
+          if os.path.exists(coverage_path):
+              try:
+                  tree = ET.parse(coverage_path)
+                  root = tree.getroot()
+                  total_coverage = f"{float(root.get('line-rate', 0)) * 100:.1f}%"
+                  for pkg in root.findall(".//class"):
+                      filename = pkg.get("filename", "")
+                      line_rate = float(pkg.get("line-rate", 0)) * 100
+                      coverage_rows += f"""
+                      <tr>
+                          <td>{filename}</td>
+                          <td>{line_rate:.1f}%</td>
+                      </tr>"""
+              except Exception as e:
+                  coverage_rows = f'<tr><td colspan="2">Error parsing coverage: {e}</td></tr>'
+          else:
+              coverage_rows = '<tr><td colspan="2">No coverage file found.</td></tr>'
+
+          # --- Parse pep8 report ---
+          pep8_content = "No PEP8 report found."
+          pep8_path = "artifacts/pep8/pep8-report.txt"
+          if os.path.exists(pep8_path):
+              with open(pep8_path, "r") as f:
+                  pep8_content = f.read().replace("<", "&lt;").replace(">", "&gt;") or "✅ No issues found."
+
+          # --- Parse packages report ---
+          packages_content = "No packages report found."
+          packages_path = "artifacts/packages/packages-report.txt"
+          if os.path.exists(packages_path):
+              with open(packages_path, "r") as f:
+                  packages_content = f.read().replace("<", "&lt;").replace(">", "&gt;")
 
           html_content = f"""
           <!DOCTYPE html>
@@ -86,33 +257,77 @@ jobs:
                   body {{ font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
                   .header {{ background-color: #007bff; color: white; padding: 20px; border-radius: 5px; }}
                   .section {{ margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background: white; }}
-                  .success {{ color: #28a745; }}
-                  .failure {{ color: #dc3545; }}
+                  .success {{ color: #28a745; font-weight: bold; }}
+                  .failure {{ color: #dc3545; font-weight: bold; }}
+                  .warning {{ color: #ffc107; font-weight: bold; }}
                   table {{ width: 100%; border-collapse: collapse; }}
                   th, td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
                   th {{ background-color: #f8f9fa; }}
+                  tr.passed td {{ background-color: #d4edda; }}
+                  tr.failed td {{ background-color: #f8d7da; }}
+                  tr.skipped td {{ background-color: #fff3cd; }}
+                  pre {{ background: #272822; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; }}
+                  .stats {{ display: flex; gap: 15px; flex-wrap: wrap; margin: 10px 0; }}
+                  .stat-box {{ padding: 10px 20px; border-radius: 5px; color: white; font-weight: bold; text-align: center; }}
+                  .stat-total {{ background: #007bff; }}
+                  .stat-passed {{ background: #28a745; }}
+                  .stat-failed {{ background: #dc3545; }}
+                  .stat-skipped {{ background: #ffc107; color: black; }}
               </style>
           </head>
           <body>
               <div class="header">
-                  <h1>Backend CI Pipeline Report</h1>
+                  <h1>🏥 Backend CI Pipeline Report</h1>
                   <p>Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
               </div>
+
               <div class="section">
-                  <h2>Pipeline Summary</h2>
+                  <h2>📋 Pipeline Summary</h2>
                   <table>
                       <tr><th>Job</th><th>Status</th></tr>
                       <tr><td>PEP8 Code Style Check</td><td class="success">✓ Completed</td></tr>
                       <tr><td>Build Code</td><td class="success">✓ Completed</td></tr>
+                      <tr><td>Unit Tests</td><td class="{test_status_class}">{test_status_label}</td></tr>
                       <tr><td>Verify Packages</td><td class="success">✓ Completed</td></tr>
                   </table>
+                  <p><strong>Branch:</strong> develop | <strong>Trigger:</strong> Pull Request | <strong>Python:</strong> 3.9 | <strong>Service:</strong> ML Backend Healthcare</p>
               </div>
+
               <div class="section">
-                  <h2>Details</h2>
-                  <p><strong>Branch:</strong> develop</p>
-                  <p><strong>Trigger:</strong> Pull Request</p>
-                  <p><strong>Python Version:</strong> 3.9</p>
-                  <p><strong>Service:</strong> ML Backend Healthcare</p>
+                  <h2>🧪 Test Results</h2>
+                  <div class="stats">
+                      <div class="stat-box stat-total">Total: {test_summary['total']}</div>
+                      <div class="stat-box stat-passed">Passed: {test_summary['passed']}</div>
+                      <div class="stat-box stat-failed">Failed: {test_summary['failed'] + test_summary['errors']}</div>
+                      <div class="stat-box stat-skipped">Skipped: {test_summary['skipped']}</div>
+                  </div>
+                  <table>
+                      <tr><th>Class</th><th>Test Name</th><th>Status</th><th>Duration</th></tr>
+                      {test_rows}
+                  </table>
+              </div>
+
+              <div class="section">
+                  <h2>📊 Coverage Report — Overall: {total_coverage}</h2>
+                  <table>
+                      <tr><th>File</th><th>Coverage</th></tr>
+                      {coverage_rows}
+                  </table>
+              </div>
+
+              <div class="section">
+                  <h2>🖨️ Test Console Output</h2>
+                  <pre>{test_output or 'No output captured.'}</pre>
+              </div>
+
+              <div class="section">
+                  <h2>🔍 PEP8 Report</h2>
+                  <pre>{pep8_content}</pre>
+              </div>
+
+              <div class="section">
+                  <h2>📦 Installed Packages</h2>
+                  <pre>{packages_content}</pre>
               </div>
           </body>
           </html>
@@ -120,17 +335,16 @@ jobs:
 
           with open('reports/index.html', 'w') as f:
               f.write(html_content)
+          print("✅ Report generated successfully.")
           EOF
 
-      # ✅ Publish report to GitHub Pages
       - name: Deploy report to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./reports
-          destination_dir: backend-ci-report  # ✅ subfolder to avoid overwriting frontend report
+          destination_dir: backend-ci-report
 
-      # ✅ Print clickable link in the workflow summary
       - name: Print Report URL
         run: |
           echo "## ✅ CI Report Published" >> $GITHUB_STEP_SUMMARY
