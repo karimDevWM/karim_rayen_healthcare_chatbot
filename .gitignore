@@ -40,7 +40,6 @@ coverage.xml
 *.ipynb
 
 # ML Models & large binary files
-*.pkl
 *.pickle
 *.h5
 *.hdf5
@@ -84,3 +83,4 @@ yarn-error.log*
 
 # Static generated files
 staticfiles/
+mlBackendHealthcare/use_case.puml
