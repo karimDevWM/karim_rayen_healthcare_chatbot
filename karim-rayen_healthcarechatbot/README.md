@@ -43,7 +43,7 @@ That's it! The chatbot is now running in a container.
    cd karim-rayen_healthcarechatbot
    ```
 
-2. **Create a Virtual Environment (Recommended)**
+2. **Create a Virtual Environment**
    ```bash
    python -m venv chatbot_env
    
