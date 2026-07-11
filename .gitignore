@@ -84,3 +84,4 @@ yarn-error.log*
 # Static generated files
 staticfiles/
 mlBackendHealthcare/use_case.puml
+docker-compose copy.yml
